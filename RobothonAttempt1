@@ -11,40 +11,44 @@ int E1 = 8; //speed of left
 int E2 = 9; // speed of right
 int M1 = 10; // movement of left
 int M2 = 11; // movement of right
-
-int fan = 46;
+int E3 = 22; // fan speed
+int M3 = 23; // fan movement
 
 //purpose: start the methods and set the fan as an output
 void setup()
 {
  Serial.begin(9600); 
- pinMode(fan, OUTPUT);
  pinMode(E1, OUTPUT);
  pinMode(E2, OUTPUT);
+ pinMode(E3, OUTPUT);
  pinMode(M1, OUTPUT);
  pinMode(M2, OUTPUT);
+ pinMode(M3, OUTPUT);
 }
 
 //purpose: sense nearness to walls and fire
 //allow for fan to blow and movement to occur
+
 void loop()
 {
 front = analogRead(0);
 right = analogRead(1); 
 left = analogRead(2);
-flameCheck = digitalRead(50);
-digitalWrite(fan, LOW);
+flameCheck = !(digitalRead(50));
 
-//checks proximity to flame
-if(flameCheck == false)
+if (flameCheck)
 {
-  digitalWrite(fan, HIGH);
-}
+  digitalWrite(E3, HIGH);
+  digitalWrite(M3, HIGH);
+  delay (1000); // wait one second
+  digitalWrite(E3, LOW);
+}// end flamecheck if
+//checks proximity to flame
 
 //this will check closeness to walls
 //and move it depending closeness to walls
 
-if(front > 400 && right > 400 && left > 400)
+if (front > 400 && right > 400 && left > 400)
 {
   //turn around;
   digitalWrite(E1, LOW);
@@ -101,5 +105,5 @@ else
   digitalWrite(M2, HIGH);
 }
 
- delay(2000); //Delay the output by 1s (500ms) 
+ delay(500); //Delay the output by 1s (500ms) 
 }
