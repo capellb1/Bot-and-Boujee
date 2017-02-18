@@ -1,0 +1,105 @@
+/*
+HOW TO WIRE THE IR SENSOR TO ARDUINO
+-Connect the Red wire to power (3.3v)
+-Connect the Black wire to ground (GND)
+-Connect the 3rd wire to an analog port
+*/
+int front, left, right, flameCheck;
+//the ports for each feel/sensor
+
+int E1 = 8; //speed of left 
+int E2 = 9; // speed of right
+int M1 = 10; // movement of left
+int M2 = 11; // movement of right
+
+int fan = 46;
+
+//purpose: start the methods and set the fan as an output
+void setup()
+{
+ Serial.begin(9600); 
+ pinMode(fan, OUTPUT);
+ pinMode(E1, OUTPUT);
+ pinMode(E2, OUTPUT);
+ pinMode(M1, OUTPUT);
+ pinMode(M2, OUTPUT);
+}
+
+//purpose: sense nearness to walls and fire
+//allow for fan to blow and movement to occur
+void loop()
+{
+front = analogRead(0);
+right = analogRead(1); 
+left = analogRead(2);
+flameCheck = digitalRead(50);
+digitalWrite(fan, LOW);
+
+//checks proximity to flame
+if(flameCheck == false)
+{
+  digitalWrite(fan, HIGH);
+}
+
+//this will check closeness to walls
+//and move it depending closeness to walls
+
+if(front > 400 && right > 400 && left > 400)
+{
+  //turn around;
+  digitalWrite(E1, LOW);
+  digitalWrite(E2, HIGH);
+  digitalWrite(M1, LOW);
+  digitalWrite(M2, HIGH);
+}
+else if(left > 400 && front > 400)
+{
+  //turn right
+  digitalWrite(E1, HIGH);
+  digitalWrite(E2, LOW);
+  digitalWrite(M1, HIGH);
+  digitalWrite(M2, LOW);
+}
+else if(right > 400 && front > 400)
+{
+  //turn left
+  digitalWrite(E1, LOW);
+  digitalWrite(E2, HIGH);
+  digitalWrite(M1, LOW);
+  digitalWrite(M2, HIGH);
+}
+else if(right > 400 && left > 400)
+{
+  //move forward
+  digitalWrite(E1, HIGH);
+  digitalWrite(E2, HIGH);
+  digitalWrite(M1, HIGH);
+  digitalWrite(M2, HIGH);
+}
+else if (front > 400)
+    {
+      //turn right
+     digitalWrite(E1, HIGH);
+     digitalWrite(E2, LOW);
+     digitalWrite(M1, HIGH);
+     digitalWrite(M2, LOW);
+    }
+else if (right > 400 || left > 400)
+    {
+      //forward
+     digitalWrite(E1, HIGH);
+     digitalWrite(E2, HIGH);
+     digitalWrite(M1, HIGH);
+     digitalWrite(M2, HIGH);
+    }
+else
+{
+  //move forward
+  digitalWrite(E1, HIGH);
+  digitalWrite(E2, HIGH);
+  digitalWrite(M1, HIGH);
+  digitalWrite(M2, HIGH);
+}
+
+ delay(2000); //Delay the output by 1s (500ms) 
+}
