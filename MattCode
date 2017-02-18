@@ -1,0 +1,191 @@
+#include <Wire.h>
+#include <StackArray.h>
+StackArray <char> stack;
+//gyro stuff
+extern boolean gyroTurnTimeoutError;
+extern boolean calibrate,testMode;
+int ldist,rdist,fdist;
+int distanceTiers[3];
+int turnDirection;
+int turnDegrees;
+int loops=0; //how many tie we looped
+
+int rightTurns=0;
+int leftTurns=0;
+String distanceTxt[3]; //debug code
+//Pin Assignments
+int E1 = 6; //Speed 1
+int M1 = 7; //Direction 1
+int E2 = 5; //Speed 2                         
+int M2 = 4; //Direction 2
+int E3 = 8; //Fan
+int M3 = 9;
+
+boolean sensorDebug = true;
+boolean useStack = true;
+void setup() {
+  Wire.begin();
+  Serial.begin(9600);
+
+  Serial.println(("\n\n\nStarting up L3G4200D Gyro"));
+  setupL3G4200D(2000); // Configure L3G4200  - 250, 500 or 2000 deg/sec
+  delay(1500); //wait for the sensor to be ready   
+  //stack.setPrinter (Serial);
+  if(calibrate) {
+    // In this block, we perform calibration to reset the values stored in clicksPerDegCW and clicksPerDegCCW.
+    // IMPORTANT NOTE - after calibration, you will need to copy and paste the values displayed on the serial moniter into the 
+    // variable declarations above!!!!     
+    recalibrateGyroscope();       
+  }  
+  if (testMode) {  
+    // This function tests to see that the current values in clicksPerDegCW and clicksPerDegCCW
+    // are currently working or need to be reset
+    testCalibrationResults();    
+  }    
+}
+void readSensors()
+{
+  ldist = analogRead(1);
+  fdist = analogRead(3);
+  rdist = analogRead(2);
+  if(sensorDebug)
+    Serial.println("LFR Dist: " + String(ldist) + " " + fdist + " " + rdist);
+}
+void parseSensors() //parse sensors into tiers
+{
+  //LEFT   FORWARD   RIGHT
+  distanceTiers[0]=0;
+  distanceTiers[1]=0;
+  distanceTiers[2]=0;  
+  if(sensorDebug)
+  {
+    distanceTxt[0] = "Far";
+    distanceTxt[1] = "Far";
+    distanceTxt[2] = "Far";
+  }
+  if (ldist > 370)
+  {
+    distanceTiers[0] = 1;
+    distanceTxt[0] = "Close";
+    //Serial.print("LEFT is Close ");
+  }
+  if (fdist > 290)
+  {
+    distanceTiers[1] = 1;
+    distanceTxt[1] = "Close";
+    //Serial.print("FRONT is Close ");
+  }
+
+  if (rdist > 250)
+  {
+    distanceTiers[2] = 1;
+    distanceTxt[2] = "Close";
+    //Serial.print("RIGHT is Close ");
+  }
+  if(sensorDebug)
+  {
+    Serial.println("[" + distanceTxt[0] + " " + distanceTxt[1] + " " + distanceTxt[2] + "]");
+  }
+}
+void loop(){
+  //Scan for walls
+  readSensors();
+  parseSensors();
+  
+  turnDirection = getDirectionToTurn(); // L = -1 R = 1 0 = Straight
+  if(turnDirection != 0) //if its not go straight, then stop to turn
+      stopTurning();
+  turnDegrees=turnDirection*90;
+  Serial.println("Turn " + String(turnDegrees) + " deg " + dirToText(turnDirection) + "(" + turnDirection + ")");
+  
+  startTurning(turnDirection);
+  gyroTurnTimeoutError = gyroBasedTurns(turnDirection, turnDegrees);   
+  if(turnDirection != 0) //stop after turning
+      stopTurning();
+
+  if (gyroTurnTimeoutError)
+  {
+    Serial.println("Failed to turn... recalculating"); 
+  }
+  else 
+  {
+    Serial.println("Turn complete"); 
+  }
+  
+  loops++;
+  if(loops>=5)
+  {
+    Serial.println("DUMPING STACK\n");
+      while (!stack.isEmpty ())
+    Serial.print (stack.pop ());
+    Serial.print(" ");
+    loops=0;
+  }
+  
+  delay(1000);
+    
+}
+void startTurning(int dir)
+{
+  //Serial.println("Start Turning " + String(dir) + "!");
+  if(dir == 1)
+    turnRight();
+  else if(dir==0)
+    goForward();
+  else if(dir==-1)
+    turnLeft();
+}
+//********************************************
+//Defining Robot's Potential Actions as functions
+//Stop, move forward, turn left, turn right
+//Call different order of functions depending on the potential
+//situations in the maze (3-way fork, left only, etc.)
+//********************************************
+
+void stopTurning()
+  {
+    digitalWrite(M1,LOW);   
+    digitalWrite(M2,LOW);       
+    analogWrite(E1, LOW);   //PWM Speed Control
+    analogWrite(E2, LOW);   //PWM Speed Control
+    stack.push('*'); 
+  }
+
+void goForward()
+  {
+    digitalWrite(M1,HIGH);   
+    digitalWrite(M2,HIGH);       
+    analogWrite(E1, 250);   //PWM Speed Control
+    analogWrite(E2, 250);   //PWM Speed Control
+    stack.push('F'); 
+  }
+
+void turnRight()  //90 DEGREES CLOCKWISE
+  {
+    digitalWrite(M1,LOW);   
+    digitalWrite(M2,HIGH);       
+    analogWrite(E1, 250);   //PWM Speed Control
+    analogWrite(E2, 250);   //PWM Speed Control 
+    stack.push('R');   
+    rightTurns++;  
+  }
+
+void turnLeft()  //90 DEGREES COUNTER-CLOCKWISE
+  {
+    digitalWrite(M1,HIGH);   
+    digitalWrite(M2,LOW);       
+    analogWrite(E1, 250);   //PWM Speed Control
+    analogWrite(E2, 250);   //PWM Speed Control 
+    stack.push('L');    
+    Serial.println("Turning left"); 
+    leftTurns++;
+  }
+
+void goBackwards()
+  {
+    digitalWrite(M1,LOW);   
+    digitalWrite(M2,LOW);       
+    analogWrite(E1, 250);   //PWM Speed Control
+    analogWrite(E2, 250);   //PWM Speed Control
+    //stack.push('B'); 
+  }
